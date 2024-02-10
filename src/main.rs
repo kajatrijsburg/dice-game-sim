@@ -48,77 +48,85 @@ impl Board {
         }
     }
 
-    fn get_column(&self, team: &Team, column: usize) -> &[Option<usize>]{
+    fn get_column(&self, team: &Team, column: usize) -> &[Option<usize>] {
         assert!(column < self.columns, "request collumn does not exist.");
-        
         let board_half = self.get_board_half(team);
-        &board_half[(self.columns * self.rows)..self.rows]
+        let offset = column * self.rows;
+
+        &board_half[offset..offset + self.rows]
     }
 
     fn insert(&mut self, team: &Team, column: usize, roll: usize) {
         assert!(column < self.columns);
 
-        let own_board;
-        let opposite_board;
+        let team_offset;
+        let opponent_team_offset;
         match team {
             Team::Red => {
-                own_board = &mut self.board_red;
-                opposite_board = &mut self.board_blue;
+                team_offset = 0;
+                opponent_team_offset = self.columns * self.rows;
             }
             Team::Blue => {
-                own_board = &mut self.board_blue;
-                opposite_board = &mut self.board_red;
+                team_offset = self.columns * self.rows;
+                opponent_team_offset = 0;
             }
         }
 
-        //remove any instances of this roll from the oppositions column
-        for i in 0..self.rows {
-            match opposite_board[column][i] {
-                Some(num) => {
-                    if num == roll {
-                        opposite_board[column][i] = None;
-                    }
-                }
-                None => (),
+        let start_index = team_offset + column * self.rows;
+        let end_index = start_index + self.rows;
+
+        let mut insertion_index = None;
+        for i in start_index..end_index {
+            if self.data[i] == None {
+                insertion_index = Some(i);
             }
         }
 
-        for i in 0..self.rows {
-            match own_board[column][i] {
-                Some(_) => (),
-                None => {
-                    own_board[column][i] = Some(roll);
-                    return;
-                }
+        match insertion_index {
+            Some(index) => self.data[index] = Some(roll),
+            None => {
+                panic!("Collumn does not have a free space!")
             }
         }
 
-        panic!("No valid insertion point was found")
+        let start_index = opponent_team_offset + column * self.rows;
+        let end_index = start_index + self.rows;
+
+        for i in start_index..end_index {
+            if self.data[i] == Some(roll) {
+                self.data[i] = None;
+            }
+        }
     }
 
     fn to_string(&self) -> String {
         let mut str = String::new();
-        for x in 0..self.rows {
-            for y in 0..self.rows {
-                match self.board_red[y][x] {
-                    Some(num) => str.push_str(&num.to_string()),
-                    None => str.push('*'),
-                };
-                str.push('|');
-            }
-            str.push('\n')
-        }
+        let no_val = '-';
+        let seperator = '-';
+        let board_seperator = "------\n";
 
-        str.push_str("------\n");
-        for x in 0..self.rows {
-            for y in 0..self.rows {
-                match self.board_blue[y][x] {
-                    Some(num) => str.push_str(&num.to_string()),
-                    None => str.push('*'),
-                };
-                str.push('|');
+        for (i, option) in self.data.iter().enumerate() {
+            match option {
+                Some(num) => {
+                    str.push_str(&num.to_string());
+                }
+                None => {
+                    str.push(no_val);
+                }
             }
-            str.push('\n')
+
+            str.push(seperator);
+
+            if i == 0 {
+                continue;
+            }
+
+            if i % self.rows == 0 {
+                str.push('\n');
+            }
+            if i % self.rows * self.columns == 0 {
+                str.push_str(board_seperator);
+            }
         }
 
         str
@@ -126,24 +134,13 @@ impl Board {
 
     fn has_space(&self, team: &Team, column: usize) -> bool {
         assert!(column < self.columns);
+        let col = self.get_column(team, column);
 
-        match team {
-            Team::Red => {
-                for i in 0..self.rows {
-                    if self.board_red[column][i].is_none() {
-                        return true;
-                    }
-                }
-            }
-            Team::Blue => {
-                for i in 0..self.rows {
-                    if self.board_blue[column][i].is_none() {
-                        return true;
-                    }
-                }
+        for option in col {
+            if option.is_none() {
+                return true;
             }
         }
-
         false
     }
 
@@ -158,11 +155,7 @@ impl Board {
     }
 
     fn calculate_column_score(&self, team: &Team, column: usize) -> usize {
-        let col;
-        match team {
-            Team::Red => col = &self.board_red[column],
-            Team::Blue => col = &self.board_blue[column],
-        }
+        let col = self.get_column(team, column);
 
         let mut rolls: HashMap<usize, usize> = HashMap::new();
         for option in col {
@@ -381,7 +374,7 @@ impl TotalWins {
         TotalWins {
             red_wins: self.red_wins + other.red_wins,
             blue_wins: self.blue_wins + other.blue_wins,
-            ties: self.ties + other.ties
+            ties: self.ties + other.ties,
         }
     }
 }
@@ -405,13 +398,15 @@ fn run_games(times: usize) -> TotalWins {
 
 fn main() {
     let games_per_thread = 10000;
-    let threads = 10;
+    let threads = 1;
     let total_games = threads * games_per_thread;
     let mut result = TotalWins::new();
 
     let mut handles = Vec::new();
     for _ in 0..threads {
-        handles.push(thread::spawn(move || -> TotalWins {run_games(games_per_thread)}));
+        handles.push(thread::spawn(move || -> TotalWins {
+            run_games(games_per_thread)
+        }));
     }
 
     handles.into_iter().for_each(|handle| {
