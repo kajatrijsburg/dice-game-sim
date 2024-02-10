@@ -158,31 +158,43 @@ impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut str = String::new();
         let no_val = '-';
-        let seperator = '-';
+        let separator = '|';
         let board_seperator = "------\n";
 
-        for (i, option) in self.data.iter().enumerate() {
-            match option {
-                Some(num) => {
-                    str.push_str(&num.to_string());
+        for y in 0..self.columns {
+            for x in 0..self.columns {
+                let index = x * self.columns + y;
+
+                match self.data[index] {
+                    Some(num) => {
+                        str.push_str(&num.to_string());
+                    }
+                    None => {
+                        str.push(no_val);
+                    }
                 }
-                None => {
-                    str.push(no_val);
+                str.push(separator);
+            }
+            str.push('\n');
+        }
+
+        str.push_str(board_seperator);
+
+        for y in 0..self.columns {
+            for x in 0..self.columns {
+                let index = x * self.rows + y + self.columns * self.rows;
+
+                match self.data[index] {
+                    Some(num) => {
+                        str.push_str(&num.to_string());
+                    }
+                    None => {
+                        str.push(no_val);
+                    }
                 }
+                str.push(separator);
             }
-
-            str.push(seperator);
-
-            if i == 0 {
-                continue;
-            }
-
-            if i % self.rows == 0 {
-                str.push('\n');
-            }
-            if i % self.rows * self.columns == 0 {
-                str.push_str(board_seperator);
-            }
+            str.push('\n');
         }
 
         write!(f, "{}", str)
