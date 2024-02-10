@@ -13,8 +13,7 @@ struct Game {
 
 #[derive(Clone)]
 struct Board {
-    board_red: Vec<Vec<Option<usize>>>,
-    board_blue: Vec<Vec<Option<usize>>>,
+    data: Vec<Option<usize>>,
     pub columns: usize,
     pub rows: usize,
 }
@@ -34,20 +33,26 @@ enum Team {
 
 impl Board {
     fn empty_board(columns: usize, rows: usize) -> Self {
-        let empty_half_board = {
-            let mut half_board: Vec<Vec<Option<usize>>> = Vec::new();
-            for _ in 0..=columns {
-                half_board.push(vec![None; rows]);
-            }
-            half_board
-        };
-
         Board {
-            board_blue: empty_half_board.clone(),
-            board_red: empty_half_board,
+            data: vec![None; rows * columns * 2],
             columns,
             rows,
         }
+    }
+
+    fn get_board_half(&self, team: &Team) -> &[Option<usize>] {
+        let split_point = self.rows * self.columns;
+        match team {
+            Team::Red => &self.data[..split_point],
+            Team::Blue => &self.data[split_point..],
+        }
+    }
+
+    fn get_column(&self, team: &Team, column: usize) -> &[Option<usize>]{
+        assert!(column < self.columns, "request collumn does not exist.");
+        
+        let board_half = self.get_board_half(team);
+        &board_half[(self.columns * self.rows)..self.rows]
     }
 
     fn insert(&mut self, team: &Team, column: usize, roll: usize) {
