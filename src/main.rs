@@ -123,7 +123,7 @@ fn run_games(times: usize) -> TotalWins {
 
 fn main() {
     let games_per_thread = 10000;
-    let threads = 1;
+    let threads = 10;
     let total_games = threads * games_per_thread;
     let mut result = TotalWins::new();
 
